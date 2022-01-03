@@ -1,11 +1,6 @@
-#import pandas as pd
-#import numpy as np
 import cupy as np
+import pandas as pd
 from sklearn.metrics import roc_auc_score, roc_curve 
-# from autodp.calibrator_zoo import eps_delta_calibrator
-# from autodp.autodp_core import Mechanism
-# from autodp.mechanism_zoo import GaussianMechanism
-# from autodp.transformer_zoo import ComposeGaussian
 
 rng = np.random.RandomState(1729)
 
@@ -74,34 +69,6 @@ def cross_entropy_loss(y_one_hot, activations):
 
 # COMMAND ----------
 
-# MAGIC %md autodp related
-
-# COMMAND ----------
-
-# class NoisyGD_mech(Mechanism):
-#     def __init__(self,sigma,coeff,name='NoisyGD'):
-#         Mechanism.__init__(self)
-#         self.name = name
-#         self.params={'sigma':sigma,'coeff':coeff}
-        
-#         # ----------- Implement noisy-GD here with "GaussianMechanism" and "ComposeGaussian" ----------------
-#         gm = GaussianMechanism(sigma, name='Release_gradient')
-#         compose = ComposeGaussian()
-#         mech = compose([gm],[coeff])
-#         # ------------- return a Mechanism object named 'mech' --------------------s
-#         self.set_all_representation(mech)       
-        
-# def find_appropriate_niter(sigma, eps, delta):
-#     # Use autodp calibrator for selecting 'niter'
-#     NoisyGD_fix_sigma = lambda x:  NoisyGD_mech(sigma,x)
-#     calibrate = eps_delta_calibrator()
-#     mech = calibrate(NoisyGD_fix_sigma, eps, delta, [0,500000])
-#     niter = int(np.floor(mech.params['coeff']))    
-#     return niter
-
-
-# COMMAND ----------
-
 # MAGIC %md Noisy Gradient Descent
 
 # COMMAND ----------
@@ -134,10 +101,7 @@ def run_noisyGD(niter, learning_rate, clip_threshold, sigma, X, y, w, GS, clip_o
             w_gradients = np.einsum('i,ijk->jk', clip, w_gradients)
     
         w -= learning_rate * (w_gradients + add_gauss_noise(GS*sigma, n_feature, n_class))
-        # calculated loss
-#         loss = cross_entropy_loss(y, softmax_activation(np.matmul(X, w)))
-#         record_loss.append(loss)    
-    return w #, flag_clip #record_loss #, record_clip
+    return w
 
 def run_multiple_noisy_gd(X_train, y_train, X_test, y_test, eps_list, rep, delta, sigma, beta_L, f0_minus_fniter_bound, GS, clip_threshold, clip_or_not, lr, iters):
     ## run noisyGD w.r.t. epsilon list
@@ -160,7 +124,6 @@ def run_multiple_noisy_gd(X_train, y_train, X_test, y_test, eps_list, rep, delta
         n_iterations = iters[j]
         learning_rate = lr[j]
         j+=1
-        #n_iterations = find_appropriate_niter(sigma, ep_s, delta)
         print(ep_s)
         for i in range(rep):   
             w_ini = np.zeros((n_feature, n_class))
@@ -176,8 +139,6 @@ def run_multiple_noisy_gd(X_train, y_train, X_test, y_test, eps_list, rep, delta
                 pred_test.append(1)
     
             if n_iterations > 0:    
-#                 learning_rate = theoretical_lr_choice(beta_L, f0_minus_fniter_bound, n_feature, 
-#                                                       sigma*GS, n_iterations)
                 w_train = run_noisyGD(niter=n_iterations, learning_rate=learning_rate, 
                                          clip_threshold = clip_threshold, sigma=sigma, X=X_train, 
                                          y=y_train, w=w_ini, GS=GS, clip_or_not=clip_or_not)
@@ -196,7 +157,7 @@ def run_multiple_noisy_gd(X_train, y_train, X_test, y_test, eps_list, rep, delta
                 tr_pre = np.argmax(y_pred_prob_train, axis=1)
                 pred_train.append(float(sum(tr_pre==0)) / tr_tru.shape[0])
                 tr_acc.append(float(sum(tr_pre==tr_tru)) / tr_tru.shape[0])
-                
+               
                 te_pre = np.argmax(y_pred_prob_test, axis=1)
                 pred_test.append(float(sum(te_pre==0)) / te_tru.shape[0])
                 te_acc.append(float(sum(te_pre==te_tru)) / te_tru.shape[0])
